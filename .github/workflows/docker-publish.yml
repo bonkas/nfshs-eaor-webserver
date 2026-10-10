@@ -1,0 +1,44 @@
+name: Build and publish Docker image
+
+# Builds deploy/Dockerfile and pushes it to GitHub Container Registry
+# whenever deploy/ changes on main. This is what lets a host running
+# docker-compose.yml pull a prebuilt image (and lets something like
+# Watchtower auto-update it) instead of building from source every time.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/**"
+      - ".github/workflows/docker-publish.yml"
+  workflow_dispatch: {}
+
+env:
+  IMAGE: ghcr.io/bonkas/nfshs-eaor-webserver
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: deploy
+          file: deploy/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
