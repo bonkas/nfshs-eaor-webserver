@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>NFS: High Stakes Online - Live Lobby</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg: #0b0d12;
+    --card: #161a22;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #8b93a3;
+    --accent: #ff9d2e;
+    --green: #37d67a;
+    --red: #ff5c5c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg) url("/img/mmnu_bg.png") center top / cover no-repeat fixed;
+    color: var(--text);
+    padding: 32px 16px;
+    min-height: 100vh;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; }
+  .logo-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 4px;
+  }
+  .logo { height: 70px; width: auto; display: block; }
+  .globe { height: 90px; width: auto; display: block; }
+  .mini-logo { height: 70px; width: auto; display: block; opacity: 0.85; }
+  .subtitle { color: var(--muted); font-size: 0.9rem; margin-bottom: 24px; }
+  .status-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--muted);
+    display: inline-block;
+    transition: background 0.3s;
+  }
+  .status-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .status-dot.err { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    color: var(--green);
+  }
+  .live-indicator.err { color: var(--red); }
+  .blink-cursor {
+    display: inline-block;
+    width: 7px;
+    height: 13px;
+    background: currentColor;
+    animation: blink 1s steps(1) infinite;
+  }
+  @keyframes blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+  }
+  .card {
+    background: rgba(22, 26, 34, 0.82);
+    backdrop-filter: blur(2px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .room-name { font-size: 1.1rem; font-weight: 600; }
+  .room-name::before { content: "🏁 "; }
+  .player-count {
+    background: var(--accent);
+    color: #1a1200;
+    font-weight: 700;
+    font-size: 0.8rem;
+    padding: 3px 10px;
+    border-radius: 999px;
+  }
+  .player-list { list-style: none; margin: 0; padding: 0; }
+  .player-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .player-row:last-child { border-bottom: none; }
+  .player-name { font-weight: 600; }
+  .player-rank {
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+  .empty-state {
+    color: var(--muted);
+    text-align: center;
+    padding: 20px 0;
+    font-style: italic;
+  }
+  .history-card { margin-top: 4px; }
+  .history-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .history-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; }
+  .history-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+  }
+  .history-row:last-child { border-bottom: none; }
+  .history-event.join { color: var(--green); }
+  .history-event.leave { color: var(--red); }
+  .history-time { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
+  .meta {
+    color: var(--muted);
+    font-size: 0.75rem;
+    text-align: right;
+    margin-top: 8px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .countdown { font-variant-numeric: tabular-nums; }
+  .hit-counter {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
+  }
+  .hit-counter-inner {
+    font-family: "Courier New", Courier, monospace;
+    font-size: 0.7rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hit-counter-digits {
+    background: #000;
+    color: #ff9d2e;
+    border: 1px solid #3a2a10;
+    padding: 3px 6px;
+    border-radius: 3px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    box-shadow: inset 0 0 4px rgba(255, 157, 46, 0.4);
+  }
+  .error-banner {
+    background: #2a1414;
+    border: 1px solid var(--red);
+    color: #ffb3b3;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-size: 0.9rem;
+    display: none;
+  }
+  .sound-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 16px auto;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    width: 34px;
+    height: 34px;
+    font-size: 1.2rem;
+    line-height: 1;
+    padding: 0;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.65;
+    transition: opacity 0.2s, color 0.2s, background 0.2s;
+  }
+  .sound-toggle:hover {
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.06);
+  }
+  .sound-toggle.on {
+    color: var(--green);
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo-row">
+    <img src="/img/spinning_globe.gif" alt="Spinning globe" class="globe">
+    <img src="/img/nfshs_logo.png" alt="Need for Speed: High Stakes" class="logo">
+    <img src="/img/spinning_logo.gif" alt="" class="mini-logo">
+    <span class="status-dot" id="statusDot"></span>
+    <span class="live-indicator" id="liveIndicator">LIVE<span class="blink-cursor"></span></span>
+  </div>
+  <div class="subtitle">Live lobby data, polled directly from the community NPS server.</div>
+
+  <button class="sound-toggle" id="soundToggle" type="button" aria-pressed="false" aria-label="Enable join sound" title="Enable join sound">🔇</button>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="room-name" id="roomName">Loading…</span>
+      <span class="player-count" id="playerCount">-</span>
+    </div>
+    <ul class="player-list" id="playerList"></ul>
+  </div>
+
+  <div class="card history-card">
+    <div class="history-title">📜 Activity history</div>
+    <ul class="history-list" id="historyList"></ul>
+  </div>
+
+  <div class="meta">
+    <span id="lastUpdated"></span>
+    <span class="countdown" id="countdown"></span>
+  </div>
+
+  <div class="hit-counter">
+    <div class="hit-counter-inner">
+      Visitors:
+      <span class="hit-counter-digits" id="hitCounter">------</span>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.origin;
+const POLL_INTERVAL_MS = 15000; // matches backend cache window
+let nextRefreshAt = Date.now() + POLL_INTERVAL_MS;
+
+// --- Join sound ---
+// Plays a short synthesized beep (Web Audio API - no audio file asset
+// needed) when a username appears in the player list that wasn't there
+// on the previous poll. Off by default and gated behind an explicit
+// user click on #soundToggle: browsers block audio autoplay without a
+// prior user gesture anyway, and it also means a first-time visitor
+// doesn't get surprised by sound. Only fires for players who *weren't*
+// already present - the very first successful poll after enabling never
+// plays anything (fills the "known players" set silently first) so
+// turning the sound on doesn't itself trigger a false "someone joined"
+// alert for players already in the lobby.
+let soundEnabled = false;
+let knownPlayers = null; // null = not yet initialized; Set<string> once seeded
+let audioCtx = null;
+
+function playJoinSound() {
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(880, now);
+  osc.frequency.exponentialRampToValueAtTime(1320, now + 0.12);
+  gain.gain.setValueAtTime(0.0001, now);
+  gain.gain.exponentialRampToValueAtTime(0.2, now + 0.02);
+  gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(now);
+  osc.stop(now + 0.4);
+}
+
+document.getElementById('soundToggle').addEventListener('click', () => {
+  soundEnabled = !soundEnabled;
+  const btn = document.getElementById('soundToggle');
+  if (soundEnabled) {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    btn.textContent = '🔊';
+    btn.classList.add('on');
+    btn.setAttribute('aria-pressed', 'true');
+    btn.setAttribute('aria-label', 'Disable join sound');
+    btn.title = 'Disable join sound';
+  } else {
+    btn.textContent = '🔇';
+    btn.classList.remove('on');
+    btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('aria-label', 'Enable join sound');
+    btn.title = 'Enable join sound';
+  }
+});
+
+function checkForNewJoins(players) {
+  const current = new Set((players || []).map(p => p.username));
+  if (knownPlayers === null) {
+    // First poll (or first poll since a reload) - just seed the known
+    // set, never play a sound for players already here on page load.
+    knownPlayers = current;
+    return;
+  }
+  if (soundEnabled) {
+    for (const name of current) {
+      if (!knownPlayers.has(name)) {
+        playJoinSound();
+        break; // one beep per poll cycle is enough even if several joined at once
+      }
+    }
+  }
+  knownPlayers = current;
+}
+
+async function refresh() {
+  nextRefreshAt = Date.now() + POLL_INTERVAL_MS;
+  const dot = document.getElementById('statusDot');
+  const errorBanner = document.getElementById('errorBanner');
+  try {
+    const res = await fetch(`${API_BASE}/api/lobby`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    document.getElementById('roomName').textContent = data.room || '(no active lobby)';
+    document.getElementById('playerCount').textContent =
+      data.player_count !== null ? `${data.player_count} online` : '? online';
+
+    checkForNewJoins(data.players);
+
+    const list = document.getElementById('playerList');
+    list.innerHTML = '';
+    if (!data.players || data.players.length === 0) {
+      list.innerHTML = '<li class="empty-state">No players currently in the lobby.</li>';
+    } else {
+      for (const p of data.players) {
+        const li = document.createElement('li');
+        li.className = 'player-row';
+        li.innerHTML = `
+          <span class="player-name">${escapeHtml(p.username)}</span>
+          ${p.rank !== null && p.rank !== undefined ? `<span class="player-rank">Rank ${p.rank}</span>` : ''}
+        `;
+        list.appendChild(li);
+      }
+    }
+
+    const queriedAt = new Date(data.queried_at * 1000);
+    document.getElementById('lastUpdated').textContent =
+      `Last updated: ${queriedAt.toLocaleTimeString()}`;
+
+    dot.className = 'status-dot ok';
+    const liveIndicator = document.getElementById('liveIndicator');
+    liveIndicator.classList.remove('err');
+    liveIndicator.innerHTML = 'LIVE<span class="blink-cursor"></span>';
+    errorBanner.style.display = 'none';
+  } catch (e) {
+    dot.className = 'status-dot err';
+    const liveIndicator = document.getElementById('liveIndicator');
+    liveIndicator.classList.add('err');
+    liveIndicator.innerHTML = 'OFFLINE<span class="blink-cursor"></span>';
+    errorBanner.textContent = `Couldn't reach the API: ${e.message}`;
+    errorBanner.style.display = 'block';
+  }
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+// --- Activity history ---
+// Backend-side log (deploy/backend.py's /api/history) of every join/leave
+// event it has observed across ALL real upstream queries, not just this
+// browser tab's session - so this shows activity even if nobody had the
+// page open when it happened. Polled independently of /api/lobby since it
+// never triggers a real NPS query itself (pure read of the backend's
+// stored log), so this can refresh at its own pace with zero extra load
+// on the upstream game server.
+const HISTORY_POLL_INTERVAL_MS = 20000;
+
+async function loadHistory() {
+  try {
+    const res = await fetch(`${API_BASE}/api/history?limit=50`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const list = document.getElementById('historyList');
+    list.innerHTML = '';
+    if (!data.events || data.events.length === 0) {
+      list.innerHTML = '<li class="empty-state">No activity recorded yet.</li>';
+      return;
+    }
+    for (const ev of data.events) {
+      const li = document.createElement('li');
+      li.className = 'history-row';
+      const verb = ev.action === 'join' ? 'joined' : 'left';
+      const when = new Date(ev.timestamp * 1000);
+      li.innerHTML = `
+        <span class="history-event ${escapeHtml(ev.action)}">${escapeHtml(ev.username)} ${verb}</span>
+        <span class="history-time">${when.toLocaleString()}</span>
+      `;
+      list.appendChild(li);
+    }
+  } catch (e) {
+    // Non-critical - leave whatever was last rendered (or blank) if this fails.
+  }
+}
+
+async function loadHitCounter() {
+  try {
+    const res = await fetch(`${API_BASE}/api/hits`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const padded = String(data.hits).padStart(6, '0');
+    document.getElementById('hitCounter').textContent = padded;
+  } catch (e) {
+    // Non-critical - leave the placeholder dashes if this fails.
+  }
+}
+
+refresh();
+setInterval(refresh, POLL_INTERVAL_MS);
+loadHitCounter();
+loadHistory();
+setInterval(loadHistory, HISTORY_POLL_INTERVAL_MS);
+
+function tickCountdown() {
+  const secsLeft = Math.max(0, Math.ceil((nextRefreshAt - Date.now()) / 1000));
+  document.getElementById('countdown').textContent = `Next refresh in ${secsLeft}s`;
+}
+tickCountdown();
+setInterval(tickCountdown, 1000);
+</script>
+</body>
+</html>

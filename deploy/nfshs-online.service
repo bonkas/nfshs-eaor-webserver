@@ -1,0 +1,28 @@
+# NFSHS Online - systemd service (non-Docker Linux hosts).
+# Assumes the contents of deploy/ are copied to /opt/nfshs and owned by
+# a "nfshs" user - see README.md for the full install steps.
+# State (history.jsonl, hit_counter.txt) lives in /opt/nfshs/data.
+
+[Unit]
+Description=NFSHS Online web server
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=nfshs
+WorkingDirectory=/opt/nfshs
+# Change the address/port here, e.g. run.py 127.0.0.1:9000
+ExecStart=/usr/bin/python3 /opt/nfshs/run.py 0.0.0.0:8123
+Restart=always
+RestartSec=5
+
+# Hardening: the service can only write inside /opt/nfshs
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/nfshs
+
+[Install]
+WantedBy=multi-user.target

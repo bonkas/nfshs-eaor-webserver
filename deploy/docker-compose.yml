@@ -1,0 +1,20 @@
+# NFSHS Online - deploy on a live host:
+#   docker compose up -d --build
+# Update after copying new files over:
+#   docker compose up -d --build
+# Logs:
+#   docker compose logs -f
+services:
+  nfshs:
+    build: .
+    image: nfshs-online:latest
+    container_name: nfshs-online
+    restart: unless-stopped
+    ports:
+      # Host port is configurable: NFSHS_PORT=9000 docker compose up -d
+      - "${NFSHS_PORT:-8123}:8123"
+    volumes:
+      - nfshs-data:/data
+
+volumes:
+  nfshs-data:

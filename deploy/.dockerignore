@@ -1,0 +1,8 @@
+# Local-only files - keep them out of the image build
+.venv*/
+__pycache__/
+*.pyc
+data/
+history.jsonl
+hit_counter.txt
+run.py
