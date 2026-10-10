@@ -115,6 +115,14 @@ simplest host; an LXC works too with "nesting" enabled.
 ## Live host, option B: systemd (no Docker)
 
 Needs Python 3.10+ (Debian/Ubuntu: `sudo apt install python3 python3-venv`).
+**If that fails or the service later crash-loops with an `ensurepip`
+error in its logs**, the generic `python3-venv` package doesn't always
+cover a specific Python minor version - install the exact one instead,
+e.g. `sudo apt install python3.13-venv` (match whatever `python3
+--version` reports). `run.py` auto-detects and rebuilds a venv that got
+left broken by this, so once the right package is actually installed,
+restarting the service (`sudo systemctl restart nfshs-online`) is
+enough - no need to manually delete anything.
 
 ```
 sudo useradd --system --home /opt/nfshs --shell /usr/sbin/nologin nfshs
