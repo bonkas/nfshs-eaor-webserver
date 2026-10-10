@@ -17,46 +17,17 @@ Defaults are `DEFAULT_HOST`/`DEFAULT_PORT` at the top of `run.py`.
 
 ## Live host, option A: Docker (recommended)
 
-Copy this folder to the host, then either:
+Copy this folder to the host, then:
 
 ```
-docker compose up -d --build      # build from source (start + every update)
-```
-or pull the image a GitHub Action already built instead of building
-locally:
-```
-docker compose pull && docker compose up -d
+docker compose up -d --build      # start (and after every update)
+docker compose logs -f            # logs
+docker compose down                # stop (data volume is kept)
 ```
 
-Either way: `docker compose logs -f` for logs, `docker compose down` to
-stop (the data volume is kept). Host port: `NFSHS_PORT=9000 docker
-compose up -d`. State lives in the `nfshs-data` volume. Proxmox: a
-small Debian VM with Docker is the simplest host; an LXC works too with
-"nesting" enabled.
-
-**Prebuilt image**: every push to `main` that touches `deploy/`
-rebuilds and pushes `ghcr.io/bonkas/nfshs-eaor-webserver:latest` (see
-`.github/workflows/docker-publish.yml`). The package is private by
-default, so a fresh host needs to log in once before the first pull:
-```
-docker login ghcr.io -u bonkas    # paste a GitHub PAT with read:packages scope
-```
-
-**Auto-updating with [Watchtower](https://containrrr.dev/watchtower/)**:
-only works against the pulled image (not `--build`), since Watchtower
-checks the registry for a new digest on the tag you're running. Add it
-alongside this service, e.g. in the same `docker-compose.yml`:
-```yaml
-  watchtower:
-    image: containrrr/watchtower
-    restart: unless-stopped
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 300 nfshs-online   # check every 5 min, this container only
-```
-Then start with `docker compose pull && docker compose up -d` (not
-`--build`) so the running container is actually tracking the registry
-tag.
+Host port: `NFSHS_PORT=9000 docker compose up -d`. State lives in the
+`nfshs-data` volume. Proxmox: a small Debian VM with Docker is the
+simplest host; an LXC works too with "nesting" enabled.
 
 ## Live host, option B: systemd (no Docker)
 

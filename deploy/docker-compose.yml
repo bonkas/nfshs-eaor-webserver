@@ -1,15 +1,13 @@
-# NFSHS Online - deploy on a live host, either:
-#   A) build from source:        docker compose up -d --build
-#   B) pull the prebuilt image:  docker compose pull && docker compose up -d
-# (B) is what a Watchtower container needs to auto-update this - see
-# README.md. Update after a source change: re-run whichever of the two
-# you used to start it.
+# NFSHS Online - deploy on a live host:
+#   docker compose up -d --build
+# Update after copying new files over:
+#   docker compose up -d --build
 # Logs:
 #   docker compose logs -f
 services:
   nfshs:
     build: .
-    image: ghcr.io/bonkas/nfshs-eaor-webserver:latest
+    image: nfshs-online:latest
     container_name: nfshs-online
     restart: unless-stopped
     ports:
