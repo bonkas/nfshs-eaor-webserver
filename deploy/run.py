@@ -68,6 +68,24 @@ def venv_python_version():
     return None
 
 
+def venv_has_pip() -> bool:
+    try:
+        subprocess.run([str(venv_python()), "-c", "import pip"], check=True,
+                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except (subprocess.CalledProcessError, OSError):
+        return False
+
+
+def missing_venv_module_hint() -> None:
+    if os.name == "nt":
+        return
+    print(f"[run] On Debian/Ubuntu install it first:  "
+          f"sudo apt install python3.{sys.version_info[1]}-venv")
+    print(f"[run] (if that exact package name doesn't exist, try the "
+          f"generic  sudo apt install python3-venv  instead)")
+
+
 def ensure_venv() -> None:
     # A venv is tied to the exact Python X.Y that built it - rebuild it if
     # the system Python has been upgraded (common on Arch/CachyOS) or if a
@@ -84,14 +102,42 @@ def ensure_venv() -> None:
             print(f"[run] Delete this folder by hand and run again: {VENV_DIR}")
             sys.exit(1)
 
+    # A venv that exists but has no pip means a previous creation attempt
+    # failed partway - typically the python3-venv system package being
+    # missing, which makes CPython's own ensurepip step fail. venv.create()
+    # does NOT raise for this (it just prints its own warning and leaves a
+    # pip-less venv behind), so without this check a broken venv looks
+    # "already there" forever and every later run just fails confusingly
+    # at the "pip install requirements" step instead. Treat it the same as
+    # "doesn't exist yet" so it gets rebuilt - and once the real system
+    # dependency is actually installed, this also makes the service
+    # self-heal on its next restart instead of needing the venv folder
+    # deleted by hand.
+    if venv_python().exists() and not venv_has_pip():
+        print(f"[run] {VENV_DIR.name} exists but has no pip in it (the venv "
+              f"creation step likely failed partway last time) - removing it "
+              f"so it can be rebuilt ...")
+        try:
+            shutil.rmtree(VENV_DIR)
+        except OSError as e:
+            print(f"[run] Could not remove it automatically ({e}).")
+            print(f"[run] Delete this folder by hand and run again: {VENV_DIR}")
+            sys.exit(1)
+
     if not venv_python().exists():
         print(f"[run] Creating virtual environment in {VENV_DIR.name} ...")
         try:
             venv.create(VENV_DIR, with_pip=True)
         except Exception as e:
             print(f"[run] Could not create the venv: {e}")
-            if os.name != "nt":
-                print("[run] On Debian/Ubuntu install it first:  sudo apt install python3-venv")
+            missing_venv_module_hint()
+            sys.exit(1)
+        if not venv_has_pip():
+            # venv.create() "succeeded" (no exception) but ensurepip still
+            # failed - CPython prints its own explanation above this.
+            print(f"[run] The virtual environment was created but has no "
+                  f"pip - see the ensurepip error above.")
+            missing_venv_module_hint()
             sys.exit(1)
 
     wanted = hashlib.sha256(REQUIREMENTS.read_bytes()).hexdigest()
