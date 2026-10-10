@@ -3,6 +3,8 @@
 A live lobby viewer for **Need for Speed: High Stakes (1999)**'s
 resurrected online mode.
 
+**Live demo:** [nfs.bonkas.kiwi.nz](https://nfs.bonkas.kiwi.nz)
+
 ![Screenshot of the live lobby page](docs/screenshot.png)
 
 NFS: High Stakes originally used EA's **NPS ("Network Play System")**
