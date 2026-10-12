@@ -136,80 +136,109 @@ sudo systemctl enable --now nfshs-online
 journalctl -u nfshs-online -f                            # logs
 ```
 
-Update (from a git clone of the repo, e.g. `~/nfshs-eaor-webserver`):
+### Updating (systemd)
+
+If you installed from a `git clone` of the project, updating is:
 
 ```
 cd ~/nfshs-eaor-webserver && git pull
 sudo rsync -a --exclude data --exclude '.venv-*' deploy/ /opt/nfshs/
 sudo chown -R nfshs: /opt/nfshs
-sudo install -m 644 /opt/nfshs/nfshs-online.service /etc/systemd/system/   # only if the unit file changed
+sudo systemctl restart nfshs-online
+```
+
+Your history and visitor counter live in `data/`, which this leaves
+alone. No clone? Copy the new files over by hand (again skipping
+`data/`), run the `chown` line, then restart.
+
+<details>
+<summary>The update changed <code>nfshs-online.service</code> itself?</summary>
+
+Reinstall it, then reload:
+
+```
+sudo install -m 644 /opt/nfshs/nfshs-online.service /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl restart nfshs-online
 ```
 
-Without a clone, copy the new files over by hand instead (leave `data/`
-alone), `chown` again, then restart. Keep your own settings (like the
-polling variables below) in the drop-in file described there, not in the
-unit file itself: the `install` line replaces the unit file, but never
-touches the drop-in.
+This replaces the unit file, so never put your own settings in it. Use
+a drop-in file instead (see the next section) and it is never touched.
+</details>
 
-## Recording history with no viewers (optional)
+## Recording history around the clock (optional)
 
-By default, join/leave history is only recorded while someone has the
-site open (the page polling the server is what queries the game server).
-To record around the clock, set `NFSHS_BACKGROUND_POLL=1`; the interval
-is `NFSHS_POLL_INTERVAL` seconds (default and minimum 15). It's off by
-default because it means a constant query against a community-run
-server. Use one server process only (not several workers).
+Out of the box, the join/leave history only grows while someone has the
+site open. Turn this on and the server checks the lobby by itself every
+15 seconds, so you also catch people who join while nobody is looking.
 
-- Local: `NFSHS_BACKGROUND_POLL=1 python run.py` (PowerShell:
-  `$env:NFSHS_BACKGROUND_POLL=1; python run.py`)
-- Docker: `NFSHS_BACKGROUND_POLL=1 docker compose up -d` applies to
-  that command only; to make it stick, put the variables in a `.env`
-  file next to `docker-compose.yml`:
-  `printf 'NFSHS_BACKGROUND_POLL=1
-NFSHS_POLL_INTERVAL=15
-' > .env`
-- systemd: put the settings in a drop-in file, which systemd merges
-  over the main unit and which updates to the unit file never overwrite:
+It's off by default because it means a constant (small) query against
+the community-run game server. Please don't set the interval lower than
+15 seconds, and run a single server process.
 
-  ```
-  sudo mkdir -p /etc/systemd/system/nfshs-online.service.d
-  sudo tee /etc/systemd/system/nfshs-online.service.d/local.conf <<'EOF'
-  [Service]
-  Environment=NFSHS_BACKGROUND_POLL=1
-  Environment=NFSHS_POLL_INTERVAL=15
-  EOF
-  sudo systemctl daemon-reload && sudo systemctl restart nfshs-online
-  ```
-
-  (`sudo systemctl edit nfshs-online` creates the same kind of file
-  (`override.conf`), but write the `[Service]` lines *above* its
-  `### Lines below this comment will be discarded` marker or they are
-  silently dropped.)
-
-Check it took effect (systemd):
-
+**Local:**
 ```
-systemctl show nfshs-online -p Environment
-journalctl -u nfshs-online | grep -i polling
+NFSHS_BACKGROUND_POLL=1 python run.py
+```
+(Windows PowerShell: `$env:NFSHS_BACKGROUND_POLL=1; python run.py`)
+
+**Docker:** create a file named `.env` next to `docker-compose.yml`:
+```
+NFSHS_BACKGROUND_POLL=1
+```
+then run `docker compose up -d`.
+
+**systemd:** create a small settings file that updates never overwrite:
+```
+sudo mkdir -p /etc/systemd/system/nfshs-online.service.d
+sudo tee /etc/systemd/system/nfshs-online.service.d/local.conf <<'EOF'
+[Service]
+Environment=NFSHS_BACKGROUND_POLL=1
+EOF
+sudo systemctl daemon-reload && sudo systemctl restart nfshs-online
 ```
 
-The first should list the variables; the second should show
-`[backend] background polling enabled, every 15s`. (Don't use
-`journalctl -n 20`: with the page open, request lines push that startup
-line out of the window.) Docker: `docker compose logs | grep -i polling`.
+To change how often it checks, also set `NFSHS_POLL_INTERVAL` to a
+number of seconds (minimum 15) the same way, e.g.
+`NFSHS_POLL_INTERVAL=60`.
 
-To see it polling with nobody on the site, close every tab and watch
-for a new connection to the game server about every 16 seconds (each
-then lingers ~60s as `TIME-WAIT`, so a few are always listed):
+<details>
+<summary>Check that it's working / troubleshooting</summary>
+
+**Did the setting reach the server?** The startup log should say
+`[backend] background polling enabled, every 15s`:
+
+```
+journalctl -u nfshs-online | grep -i polling      # systemd
+docker compose logs | grep -i polling             # Docker
+```
+
+(Avoid `journalctl -n 20`: once people visit the page, their requests
+push the startup line out of view.) On systemd you can also run
+`systemctl show nfshs-online -p Environment` to see the settings in
+effect.
+
+**Is it really polling with nobody on the site?** Close every browser
+tab on it, then run this for a minute. A new connection to the game
+server should appear about every 16 seconds (each lingers around 60
+seconds as `TIME-WAIT`, so a few are always listed):
 
 ```
 for i in $(seq 1 60); do date +%T; sudo ss -tan | grep 18.194.54.106; sleep 1; done
 ```
 
-New history entries only appear when someone actually joins or leaves,
-so a quiet lobby shows nothing new in `/api/history` even when polling
-is working.
+**No new history entries?** Entries only appear when someone actually
+joins or leaves, so a quiet lobby shows nothing new even when polling
+works.
+
+**Using `systemctl edit nfshs-online` instead of the file above?** It
+works, but type the `[Service]` lines *above* the
+`### Lines below this comment will be discarded` marker, or they are
+silently dropped.
+
+**Docker, changed the setting?** Variables typed in front of a command
+(`NFSHS_BACKGROUND_POLL=1 docker compose up -d`) only last for that one
+command, which is why the `.env` file is recommended.
+</details>
 
 ## Network
 
