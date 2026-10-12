@@ -278,6 +278,43 @@ def _fetch_lobby() -> LobbyResponse:
         return result
 
 
+# --- Optional background polling ---
+# Off by default: history is then only recorded while someone is
+# polling /api/lobby (see the History tracking notes above). Set
+# NFSHS_BACKGROUND_POLL=1 to also query upstream on a timer, so
+# join/leave activity is captured even with no viewers. The poller goes
+# through _fetch_lobby, so it shares the cache with page loads (no extra
+# upstream queries while viewers are active). This is a constant query
+# against a community server, hence opt-in. NFSHS_POLL_INTERVAL sets the
+# seconds between polls (default 15, floored at CACHE_SECONDS).
+# Single-process only: with several workers each would run a poller.
+def _background_poll_loop(interval: float) -> None:
+    while True:
+        try:
+            _fetch_lobby()
+        except HTTPException:
+            pass  # already logged in _fetch_lobby; retry next interval
+        except Exception as e:
+            print(f"[backend] background poll error: {e}")
+        time.sleep(interval)
+
+
+def _start_background_poller() -> None:
+    if os.environ.get("NFSHS_BACKGROUND_POLL", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return
+    try:
+        interval = float(os.environ.get("NFSHS_POLL_INTERVAL", "15"))
+    except ValueError:
+        interval = 15.0
+    interval = max(interval, CACHE_SECONDS)
+    threading.Thread(target=_background_poll_loop, args=(interval,),
+                     daemon=True, name="lobby-poller").start()
+    print(f"[backend] background polling enabled, every {interval:g}s")
+
+
+_start_background_poller()
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}

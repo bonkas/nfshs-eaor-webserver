@@ -13,6 +13,11 @@ services:
     ports:
       # Host port is configurable: NFSHS_PORT=9000 docker compose up -d
       - "${NFSHS_PORT:-8123}:8123"
+    environment:
+      # Record join/leave history even with no viewers (off by default).
+      # Enable with: NFSHS_BACKGROUND_POLL=1 docker compose up -d
+      NFSHS_BACKGROUND_POLL: "${NFSHS_BACKGROUND_POLL:-0}"
+      NFSHS_POLL_INTERVAL: "${NFSHS_POLL_INTERVAL:-15}"
     volumes:
       - nfshs-data:/data
 

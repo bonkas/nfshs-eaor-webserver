@@ -139,6 +139,21 @@ journalctl -u nfshs-online -f                            # logs
 Update: copy the new files over (leave `data/` alone), `chown` again,
 then `sudo systemctl restart nfshs-online`.
 
+## Recording history with no viewers (optional)
+
+By default, join/leave history is only recorded while someone has the
+site open (the page polling the server is what queries the game server).
+To record around the clock, set `NFSHS_BACKGROUND_POLL=1`; the interval
+is `NFSHS_POLL_INTERVAL` seconds (default and minimum 15). It's off by
+default because it means a constant query against a community-run
+server. Use one server process only (not several workers).
+
+- Local: `NFSHS_BACKGROUND_POLL=1 python run.py` (PowerShell:
+  `$env:NFSHS_BACKGROUND_POLL=1; python run.py`)
+- Docker: `NFSHS_BACKGROUND_POLL=1 docker compose up -d`
+- systemd: uncomment the `Environment=` lines in the unit file, then
+  `sudo systemctl daemon-reload && sudo systemctl restart nfshs-online`
+
 ## Network
 
 Outbound only: TCP to `18.194.54.106:7777` (lobby) and `:8225` (rank

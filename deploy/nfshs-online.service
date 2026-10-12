@@ -14,6 +14,10 @@ User=nfshs
 WorkingDirectory=/opt/nfshs
 # Change the address/port here, e.g. run.py 127.0.0.1:9000
 ExecStart=/usr/bin/python3 /opt/nfshs/run.py 0.0.0.0:8123
+# Uncomment to record join/leave history even with no viewers (interval
+# in seconds, minimum 15):
+#Environment=NFSHS_BACKGROUND_POLL=1
+#Environment=NFSHS_POLL_INTERVAL=15
 Restart=always
 RestartSec=5
 
