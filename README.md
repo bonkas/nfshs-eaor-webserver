@@ -21,7 +21,8 @@ login, or any credentials - and serves it as a small website:
 
 - Live MAIN lobby roster (usernames + rank)
 - Join/leave activity history, so you can see what happened even if
-  you weren't watching
+  you weren't watching (optionally recorded around the clock, even
+  with no one on the site - see [`deploy/README.md`](deploy/README.md))
 - An optional "someone joined" sound
 - A nostalgic page-view counter, because why not
 

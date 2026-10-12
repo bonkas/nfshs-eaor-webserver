@@ -163,7 +163,12 @@ server. Use one server process only (not several workers).
 
 - Local: `NFSHS_BACKGROUND_POLL=1 python run.py` (PowerShell:
   `$env:NFSHS_BACKGROUND_POLL=1; python run.py`)
-- Docker: `NFSHS_BACKGROUND_POLL=1 docker compose up -d`
+- Docker: `NFSHS_BACKGROUND_POLL=1 docker compose up -d` applies to
+  that command only; to make it stick, put the variables in a `.env`
+  file next to `docker-compose.yml`:
+  `printf 'NFSHS_BACKGROUND_POLL=1
+NFSHS_POLL_INTERVAL=15
+' > .env`
 - systemd: put the settings in a drop-in file, which systemd merges
   over the main unit and which updates to the unit file never overwrite:
 
@@ -182,9 +187,29 @@ server. Use one server process only (not several workers).
   `### Lines below this comment will be discarded` marker or they are
   silently dropped.)
 
-Check it took effect: `systemctl show nfshs-online -p Environment`
-should list the variables, and `journalctl -u nfshs-online` should show
-`[backend] background polling enabled, every 15s`.
+Check it took effect (systemd):
+
+```
+systemctl show nfshs-online -p Environment
+journalctl -u nfshs-online | grep -i polling
+```
+
+The first should list the variables; the second should show
+`[backend] background polling enabled, every 15s`. (Don't use
+`journalctl -n 20`: with the page open, request lines push that startup
+line out of the window.) Docker: `docker compose logs | grep -i polling`.
+
+To see it polling with nobody on the site, close every tab and watch
+for a new connection to the game server about every 16 seconds (each
+then lingers ~60s as `TIME-WAIT`, so a few are always listed):
+
+```
+for i in $(seq 1 60); do date +%T; sudo ss -tan | grep 18.194.54.106; sleep 1; done
+```
+
+New history entries only appear when someone actually joins or leaves,
+so a quiet lobby shows nothing new in `/api/history` even when polling
+is working.
 
 ## Network
 
