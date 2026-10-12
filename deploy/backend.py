@@ -295,7 +295,7 @@ def _background_poll_loop(interval: float) -> None:
         except HTTPException:
             pass  # already logged in _fetch_lobby; retry next interval
         except Exception as e:
-            print(f"[backend] background poll error: {e}")
+            print(f"[backend] background poll error: {e}", flush=True)
         time.sleep(interval)
 
 
@@ -309,7 +309,7 @@ def _start_background_poller() -> None:
     interval = max(interval, CACHE_SECONDS)
     threading.Thread(target=_background_poll_loop, args=(interval,),
                      daemon=True, name="lobby-poller").start()
-    print(f"[backend] background polling enabled, every {interval:g}s")
+    print(f"[backend] background polling enabled, every {interval:g}s", flush=True)
 
 
 _start_background_poller()

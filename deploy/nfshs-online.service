@@ -14,10 +14,12 @@ User=nfshs
 WorkingDirectory=/opt/nfshs
 # Change the address/port here, e.g. run.py 127.0.0.1:9000
 ExecStart=/usr/bin/python3 /opt/nfshs/run.py 0.0.0.0:8123
-# Uncomment to record join/leave history even with no viewers (interval
-# in seconds, minimum 15):
-#Environment=NFSHS_BACKGROUND_POLL=1
-#Environment=NFSHS_POLL_INTERVAL=15
+# Without this, Python buffers stdout when it is a pipe, so [backend]
+# messages can take a long time to appear in journalctl.
+Environment=PYTHONUNBUFFERED=1
+# Site-specific settings (e.g. NFSHS_BACKGROUND_POLL) go in a drop-in
+# file, /etc/systemd/system/nfshs-online.service.d/local.conf, so
+# reinstalling this file never overwrites them - see README.md.
 Restart=always
 RestartSec=5
 

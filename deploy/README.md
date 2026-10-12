@@ -136,8 +136,21 @@ sudo systemctl enable --now nfshs-online
 journalctl -u nfshs-online -f                            # logs
 ```
 
-Update: copy the new files over (leave `data/` alone), `chown` again,
-then `sudo systemctl restart nfshs-online`.
+Update (from a git clone of the repo, e.g. `~/nfshs-eaor-webserver`):
+
+```
+cd ~/nfshs-eaor-webserver && git pull
+sudo rsync -a --exclude data --exclude '.venv-*' deploy/ /opt/nfshs/
+sudo chown -R nfshs: /opt/nfshs
+sudo install -m 644 /opt/nfshs/nfshs-online.service /etc/systemd/system/   # only if the unit file changed
+sudo systemctl daemon-reload && sudo systemctl restart nfshs-online
+```
+
+Without a clone, copy the new files over by hand instead (leave `data/`
+alone), `chown` again, then restart. Keep your own settings (like the
+polling variables below) in the drop-in file described there, not in the
+unit file itself: the `install` line replaces the unit file, but never
+touches the drop-in.
 
 ## Recording history with no viewers (optional)
 
@@ -151,8 +164,27 @@ server. Use one server process only (not several workers).
 - Local: `NFSHS_BACKGROUND_POLL=1 python run.py` (PowerShell:
   `$env:NFSHS_BACKGROUND_POLL=1; python run.py`)
 - Docker: `NFSHS_BACKGROUND_POLL=1 docker compose up -d`
-- systemd: uncomment the `Environment=` lines in the unit file, then
-  `sudo systemctl daemon-reload && sudo systemctl restart nfshs-online`
+- systemd: put the settings in a drop-in file, which systemd merges
+  over the main unit and which updates to the unit file never overwrite:
+
+  ```
+  sudo mkdir -p /etc/systemd/system/nfshs-online.service.d
+  sudo tee /etc/systemd/system/nfshs-online.service.d/local.conf <<'EOF'
+  [Service]
+  Environment=NFSHS_BACKGROUND_POLL=1
+  Environment=NFSHS_POLL_INTERVAL=15
+  EOF
+  sudo systemctl daemon-reload && sudo systemctl restart nfshs-online
+  ```
+
+  (`sudo systemctl edit nfshs-online` creates the same kind of file
+  (`override.conf`), but write the `[Service]` lines *above* its
+  `### Lines below this comment will be discarded` marker or they are
+  silently dropped.)
+
+Check it took effect: `systemctl show nfshs-online -p Environment`
+should list the variables, and `journalctl -u nfshs-online` should show
+`[backend] background polling enabled, every 15s`.
 
 ## Network
 
