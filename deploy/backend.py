@@ -136,8 +136,8 @@ _cache_lock = threading.Lock()
 # frontend's join-sound alone only helps if a tab is open and audible at
 # the exact moment.
 #
-# Persisted as an append-only JSONL file (one JSON object per line) next
-# to backend.py, auto-created at runtime (not something to upload) - same
+# Persisted as an append-only JSONL file (one JSON object per line) in
+# DATA_DIR, auto-created at runtime (not something to upload) - same
 # pattern as hit_counter.txt. Kept in memory too for fast reads; capped
 # at MAX_HISTORY_EVENTS and the file is rewritten (not just appended)
 # whenever a trim happens, so this never grows unbounded on a

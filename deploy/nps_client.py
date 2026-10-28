@@ -52,8 +52,22 @@ Observed opcodes:
     0x0106 -> C->S  join/create room request - JOIN-BASED, deprecated
     0x0214 -> S->C  ack (room port confirmation)
     0x0204 -> S->C  full user record for ONE player (broadcast per player)
-    0x0219 -> S->C  room roster summary (room name + live user count)
+    0x0219 -> S->C  room roster summary (room name + live user count;
+                    pits also carry race settings - see parse_room_roster)
     0x0206 -> S->C  ack
+    0x0401 -> S->C  also a room LIST: u32 count at body[4:8], then one
+                    record per room (MAIN on :7777, pits on :7778). No
+                    passive request for it found yet.
+
+Login-server (:8225) requests, mapped from NPSLogin.dll 2026-10-11 (only
+0x0522 is used/tested; the rest have NOT been tried against this server):
+    0x0510 -> 0x060B  NPSGetGenericHighScoreData (per-player stats; seen
+                      in a real capture: bonkas -> 28, 7, 3)
+    0x0515 -> 0x060E  NPSGetPlayerRank
+    0x0516 -> 0x060F  NPSGetFirstTopPlayer (top players list)
+    0x051A -> 0x0617  NPSGetFirstLeaderBoard
+    0x0519            NPSGetPersonaInfo / ...ByName
+    0x0522 -> 0x0522  NPSGetGenericFieldRanking (field 10 = rank)
 
 --- IMPORTANT: no login/authentication is required to read lobby data ---
 
